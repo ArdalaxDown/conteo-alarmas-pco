@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte ATS/TCS - Deslizamientos</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; font-size: 24px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        label { font-weight: bold; display: block; margin-bottom: 10px; color: #555; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; resize: vertical; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 15px; width: 100%; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        .resultados { margin-top: 30px; padding: 20px; background-color: #e8f4f8; border-radius: 6px; border-left: 5px solid #3498db; }
+        .resultados h2 { margin-top: 0; color: #2c3e50; font-size: 20px; }
+        .metricas { display: flex; gap: 20px; flex-wrap: wrap; }
+        .caja-metrica { flex: 1; min-width: 200px; background: white; padding: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        ul { list-style-type: none; padding-left: 0; }
+        li { padding: 5px 0; border-bottom: 1px solid #eee; }
+        li:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Control de Alarmas - PCO</h1>
+        
+        <form method="POST">
+            <label for="texto_alarmas">Pega aquí el registro de deslizamientos (TCS):</label>
+            <textarea name="texto_alarmas" id="texto_alarmas" rows="10" placeholder="28/05/2026 06:47:01 W400 228 301 en HERMILIO VALDIZAN...">{{ texto_ingresado }}</textarea>
+            <button type="submit">Procesar Conteo</button>
+        </form>
+
+        {% if reporte %}
+        <div class="resultados">
+            <h2>Resumen del Turno</h2>
+            <p><strong>Total de deslizamientos detectados:</strong> <span style="font-size: 1.2em; color: #e74c3c; font-weight: bold;">{{ reporte.total }}</span></p>
+            
+            <div class="metricas">
+                <div class="caja-metrica">
+                    <h3>🚇 Por Tren</h3>
+                    <ul>
+                        {% for tren, cantidad in reporte.trenes %}
+                            <li><strong>{{ tren }}:</strong> {{ cantidad }} veces</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <div class="caja-metrica">
+                    <h3>🛤️ Por Cdv y Tren asociado </h3>
+                    <ul>
+                        {% for cdv, cantidad in reporte.cdvs %}
+                            <li><strong>Cdv {{ cdv }}:</strong> {{ cantidad }} veces</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
