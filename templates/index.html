@@ -47,14 +47,22 @@
                 </div>
                 
                 <div class="caja-metrica">
-                    <h3>🛤️ Por Cdv y Tren asociado </h3>
+                    <h3>🛤️ Por Cdv y Tren asociado</h3>
                     <ul>
-                        {% for cdv, cantidad in reporte.cdvs %}
-                            <li><strong>Cdv {{ cdv }}:</strong> {{ cantidad }} veces</li>
+                        {% for asociacion, cantidad in reporte.cdvs %}
+                            <li><strong>Cdv {{ asociacion }}:</strong> {{ cantidad }} veces</li>
                         {% endfor %}
                     </ul>
                 </div>
             </div>
+            
+            {% if texto_resumen %}
+            <div style="margin-top: 25px; background-color: #2c3e50; padding: 15px; border-radius: 6px;">
+                <h3 style="color: white; margin-top: 0; font-size: 16px; margin-bottom: 10px;">📋 Texto listo para copiar al reporte:</h3>
+                <textarea readonly rows="8" style="width: 100%; background-color: #1a252f; color: #ecf0f1; border: 1px solid #34495e; padding: 12px; font-family: monospace; font-size: 14px; border-radius: 4px; resize: vertical; box-sizing: border-box;">{{ texto_resumen }}</textarea>
+            </div>
+            {% endif %}
+
         </div>
         {% endif %}
     </div>
