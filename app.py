@@ -4,6 +4,15 @@ from collections import Counter
 
 app = Flask(__name__)
 
+# Diccionario inteligente para traducir las siglas de las estaciones
+DICCIONARIO_ESTACIONES = {
+    "HVA": "Hermilio Valdizán",
+    "OVA": "Óvalo Santa Anita",
+    "EVT": "Evitamiento",
+    "MSA": "Mercado Santa Anita",
+    "COL": "Colectora Industrial"
+}
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     reporte = None
@@ -13,52 +22,98 @@ def index():
     if request.method == 'POST':
         texto_ingresado = request.form.get('texto_alarmas', '').strip()
         if texto_ingresado:
-            # Nueva expresión regular: Captura (1) Tren, (2) Estación, y (3) Cdv
-            patron = re.compile(r"W400\s+(\d{3}).*?en\s+(.+?)\s+([A-Z0-9]+):\s*Indicaci[oó]n De Deslizamiento", re.IGNORECASE)
-            
             total = 0
             trenes = Counter()
             cdvs = Counter()
-            
-            # Variables para el texto final
             resumen_detallado = {}
             trenes_unicos = set()
 
             for linea in texto_ingresado.split('\n'):
-                if "Indicación De Deslizamiento" in linea or "Indicacion De Deslizamiento" in linea:
-                    match = patron.search(linea)
-                    if match:
-                        total += 1
-                        cod_tren = match.group(1)
-                        estacion = match.group(2).strip().title() # Convierte "HERMILIO VALDIZAN" a "Hermilio Valdizan"
-                        cdv = match.group(3)
-                        
-                        num_tren = int(cod_tren[-2:]) 
-                        trenes_unicos.add(num_tren)
-                        
-                        trenes[f"Tren {num_tren} (Cód {cod_tren})"] += 1
-                        asociacion = f"{cdv} (Tren {num_tren})"
-                        cdvs[asociacion] += 1
-                        
-                        # Almacenamos los datos para armar el texto final
-                        if num_tren not in resumen_detallado:
-                            resumen_detallado[num_tren] = Counter()
-                        resumen_detallado[num_tren][(cdv, estacion)] += 1
+                linea = linea.strip()
+                if not linea:
+                    continue
+                
+                num_tren = None
+                estacion = None
+                cdv = None
+                nombre_tren_mostrar = ""
+
+                # ==========================================
+                # ZONA DE PATRONES DE BÚSQUEDA (AGREGA MÁS AQUÍ)
+                # ==========================================
+                
+                # PATRÓN 1: Formato Largo (Sistema Original)
+                # Ej: 28/05/2026 06:47:01 W400 228 301 en HERMILIO VALDIZAN 2301: Indicación De Deslizamiento
+                match_largo = re.search(r"W400\s+(\d{3}).*?en\s+(.+?)\s+([A-Z0-9]+):\s*Indicaci[oó]n", linea, re.IGNORECASE)
+                
+                # PATRÓN 2: Formato Corto con "Carrera"
+                # Ej: - 14:38:32 - T29 TID 302 Cdv 2301 - Carrera 2155 HVA -> COL
+                match_corto = re.search(r"T(\d{2,3}).*?Cdv\s+([A-Z0-9]+)\s+.*?Carrera\s+\d+\s+([A-Z]+)", linea, re.IGNORECASE)
+
+                # PATRÓN 3: Formato Simple con guiones o espacios
+                # Ej: T28 - Cdv 2301 - OVA
+                match_simple = re.search(r"T(\d{2,3})\s*-\s*Cdv\s+([A-Z0-9]+)\s*-\s*([A-Z]+)", linea, re.IGNORECASE)
+
+                # PATRÓN 4: Formato de redacción natural
+                # Ej: Tren 28 en cdv 2103 estacion ova
+                match_natural = re.search(r"Tren\s+(\d{2,3}).*?cdv\s+([A-Z0-9]+).*?(HVA|OVA|EVT|MSA|COL)", linea, re.IGNORECASE)
+
+
+                # ==========================================
+                # EVALUACIÓN EN CASCADA
+                # ==========================================
+                if match_largo:
+                    cod_tren = match_largo.group(1)
+                    num_tren = int(cod_tren[-2:]) 
+                    estacion = match_largo.group(2).strip().title()
+                    cdv = match_largo.group(3).upper()
+                    nombre_tren_mostrar = f"Tren {num_tren} (Cód {cod_tren})"
+                
+                elif match_corto:
+                    num_tren = int(match_corto.group(1))
+                    cdv = match_corto.group(2).upper()
+                    sigla_est = match_corto.group(3).upper()
+                    estacion = DICCIONARIO_ESTACIONES.get(sigla_est, sigla_est.title())
+                    nombre_tren_mostrar = f"Tren {num_tren}"
+                    
+                elif match_simple:
+                    num_tren = int(match_simple.group(1))
+                    cdv = match_simple.group(2).upper()
+                    sigla_est = match_simple.group(3).upper()
+                    estacion = DICCIONARIO_ESTACIONES.get(sigla_est, sigla_est.title())
+                    nombre_tren_mostrar = f"Tren {num_tren}"
+
+                elif match_natural:
+                    num_tren = int(match_natural.group(1))
+                    cdv = match_natural.group(2).upper()
+                    sigla_est = match_natural.group(3).upper()
+                    estacion = DICCIONARIO_ESTACIONES.get(sigla_est, sigla_est.title())
+                    nombre_tren_mostrar = f"Tren {num_tren}"
+
+                # Si algún patrón funcionó, guarda los datos
+                if num_tren is not None and cdv is not None:
+                    total += 1
+                    trenes_unicos.add(num_tren)
+                    
+                    trenes[nombre_tren_mostrar] += 1
+                    asociacion = f"{cdv} (Tren {num_tren})"
+                    cdvs[asociacion] += 1
+                    
+                    if num_tren not in resumen_detallado:
+                        resumen_detallado[num_tren] = Counter()
+                    resumen_detallado[num_tren][(cdv, estacion)] += 1
             
             # --- Generar el texto final solicitado ---
             if total > 0:
-                # Une los trenes (ej: "28 y 29")
                 lista_trenes = " y ".join(str(t) for t in sorted(trenes_unicos))
                 
                 texto_resumen = f"'ALARMAS DE DESLIZAMIENTO DETECTADO ON - VIA PRINCIPAL\n"
                 texto_resumen += f"Durante el servicio comercial se registraron un total de {total} alarmas de deslizamiento en los trenes {lista_trenes}.\n"
                 
                 for tren in sorted(resumen_detallado.keys()):
-                    for (cdv, est), cant in resumen_detallado[tren].most_common():
-                        # El :02d formatea el número para que ponga "01" o "05" en vez de "1" o "5"
-                        texto_resumen += f"Tren {tren}, se registraron {cant:02d} deslizamiento en el CdV {cdv} - {est}\n"
+                    for (c, est), cant in resumen_detallado[tren].most_common():
+                        texto_resumen += f"Tren {tren}, se registraron {cant:02d} deslizamiento en el CdV {c} - {est}\n"
 
-            # Pasamos los datos a la web
             reporte = {
                 'total': total,
                 'trenes': trenes.most_common(),
